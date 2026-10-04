@@ -1,8 +1,6 @@
-export type WeatherLocation = {
-  id: number;
-  name: string;
-  country?: string;
-  admin1?: string;
-  latitude: number;
-  longitude: number;
-};
+import type { z } from "zod";
+import type { weatherLocationSchema } from "@/schemas/location";
+
+export type WeatherLocation = z.infer<
+  typeof weatherLocationSchema
+>;
