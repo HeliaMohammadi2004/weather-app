@@ -8,6 +8,7 @@ import FavoriteButton from "./FavoriteButton";
 import FavoriteLocations from "./FavoriteLocations";
 import { useEffect, useState } from "react";
 import { useFavoritesStore } from "@/stores/useFavoritesStore";
+import HourlyForecastCard from "./HourlyForecastCard";
 
 type WeatherDashboardProps = {
   initialLocation?: WeatherLocation;
@@ -38,6 +39,7 @@ export default function WeatherDashboard({
           </div>
 
           <CurrentWeatherCard location={selectedLocation} />
+          <HourlyForecastCard location={selectedLocation} />
         </Stack>
       ) : (
         <Alert severity="info">Search for a city to see its weather.</Alert>
