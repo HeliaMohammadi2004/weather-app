@@ -28,8 +28,15 @@ type ForecastMetric = "temperature" | "precipitationProbability";
 export default function HourlyForecastCard({
   location,
 }: HourlyForecastCardProps) {
-  const { data, isPending, isError, isFetching, fetchStatus, refetch } =
-    useHourlyForecast(location.latitude, location.longitude);
+  const {
+    data,
+    dataUpdatedAt,
+    isPending,
+    isError,
+    isFetching,
+    fetchStatus,
+    refetch,
+  } = useHourlyForecast(location.latitude, location.longitude);
 
   const [metric, setMetric] = useState<ForecastMetric>("temperature");
 
@@ -70,6 +77,24 @@ export default function HourlyForecastCard({
       }),
     [data?.timezone],
   );
+
+  const updatedAtFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-GB", {
+        timeZone: data?.timezone ?? "UTC",
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      }),
+    [data?.timezone],
+  );
+
+  const updatedAtLabel =
+    dataUpdatedAt > 0
+      ? updatedAtFormatter.format(new Date(dataUpdatedAt))
+      : "—";
 
   const temperatures = points
     .map((point) => point.value)
@@ -142,9 +167,38 @@ export default function HourlyForecastCard({
 
         {data && (
           <>
-            <Typography variant="body2" color="text.secondary">
-              Local time: {data.timezone}
-            </Typography>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1}
+              sx={{
+                justifyContent: "space-between",
+                alignItems: { xs: "flex-start", sm: "center" },
+              }}
+            >
+              <Stack spacing={0.5}>
+                <Typography variant="body2" color="text.secondary">
+                  Time zone: {data.timezone}
+                </Typography>
+
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  aria-live="polite"
+                >
+                  Last retrieved: {updatedAtLabel}
+                </Typography>
+              </Stack>
+
+              <Button
+                type="button"
+                variant="outlined"
+                size="small"
+                disabled={isFetching || isPaused}
+                onClick={() => void refetch()}
+              >
+                {isFetching ? "Refreshing…" : "Refresh forecast"}
+              </Button>
+            </Stack>
 
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <Typography variant="body2">
