@@ -6,21 +6,12 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useLocationSearch } from "@/hooks/useLocationSearch";
 import { MIN_CITY_SEARCH_LENGTH } from "@/services/location";
 import type { WeatherLocation } from "@/types/location";
+import { getLocationLabel } from "@/utils/location";
 
 type CitySearchProps = {
   value: WeatherLocation | null;
   onChange: (location: WeatherLocation | null) => void;
 };
-
-function getLocationLabel(location: WeatherLocation): string {
-  return [
-    location.name,
-    location.admin1 !== location.name ? location.admin1 : undefined,
-    location.country,
-  ]
-    .filter(Boolean)
-    .join(", ");
-}
 
 export default function CitySearch({ value, onChange }: CitySearchProps) {
   const [searchTerm, setSearchTerm] = useState("");

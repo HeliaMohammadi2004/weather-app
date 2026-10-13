@@ -3,6 +3,7 @@
 import { Box, Chip, Stack, Typography } from "@mui/material";
 import { useFavoritesStore } from "@/stores/useFavoritesStore";
 import type { WeatherLocation } from "@/types/location";
+import { getLocationLabel } from "@/utils/location";
 
 type FavoriteLocationsProps = {
   selectedLocationId?: WeatherLocation["id"];
@@ -31,18 +32,10 @@ export default function FavoriteLocations({
           {favorites.map((location) => {
             const isSelected = location.id === selectedLocationId;
 
-            const label = [
-              location.name,
-              location.admin1 !== location.name ? location.admin1 : undefined,
-              location.country,
-            ]
-              .filter(Boolean)
-              .join(", ");
-
             return (
               <Chip
                 key={location.id}
-                label={label}
+                label={getLocationLabel(location)}
                 color={isSelected ? "primary" : "default"}
                 variant={isSelected ? "filled" : "outlined"}
                 aria-pressed={isSelected}

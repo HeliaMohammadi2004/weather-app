@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   Alert,
@@ -14,7 +14,7 @@ import {
 import { useHourlyForecast } from "@/hooks/useHourlyForecast";
 import type { WeatherLocation } from "@/types/location";
 
-const TemperatureChart = dynamic(() => import("./TemperatureChart"), {
+const HourlyLineChart = dynamic(() => import("./HourlyLineChart"), {
   ssr: false,
   loading: () => <Skeleton variant="rounded" height={260} />,
 });
@@ -23,11 +23,15 @@ type HourlyForecastCardProps = {
   location: WeatherLocation;
 };
 
+type ForecastMetric = "temperature" | "precipitationProbability";
+
 export default function HourlyForecastCard({
   location,
 }: HourlyForecastCardProps) {
   const { data, isPending, isError, isFetching, fetchStatus, refetch } =
     useHourlyForecast(location.latitude, location.longitude);
+
+  const [metric, setMetric] = useState<ForecastMetric>("temperature");
 
   const points = useMemo(
     () =>
@@ -38,7 +42,22 @@ export default function HourlyForecastCard({
     [data],
   );
 
-  const hasTemperature = points.some((point) => point.value !== null);
+  const chartPoints = useMemo(
+    () =>
+      data?.hours.map((hour) => ({
+        timestamp: hour.timestamp,
+        value: hour[metric],
+      })) ?? [],
+    [data, metric],
+  );
+
+  const hasChartData = chartPoints.some((point) => point.value !== null);
+
+  const isTemperature = metric === "temperature";
+
+  const chartLabel = isTemperature
+    ? "Hourly temperature"
+    : "Hourly precipitation chance";
 
   const hourlyDateFormatter = useMemo(
     () =>
@@ -84,7 +103,7 @@ export default function HourlyForecastCard({
     >
       <Stack spacing={2}>
         <Typography variant="h6" component="h2">
-          Hourly temperature — {location.name}
+          Hourly forecast — {location.name}
         </Typography>
 
         {isPaused && (
@@ -121,73 +140,112 @@ export default function HourlyForecastCard({
           />
         )}
 
-        {data &&
-          (hasTemperature ? (
-            <>
-              <Typography variant="body2" color="text.secondary">
-                Local time: {data.timezone}
+        {data && (
+          <>
+            <Typography variant="body2" color="text.secondary">
+              Local time: {data.timezone}
+            </Typography>
+
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+              <Typography variant="body2">
+                Lowest: {minTemperature?.toFixed(1) ?? "—"}{" "}
+                {data.units.temperature}
               </Typography>
-
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                <Typography variant="body2">
-                  Lowest: {minTemperature?.toFixed(1) ?? "—"}{" "}
-                  {data.units.temperature}
-                </Typography>
-
-                <Typography variant="body2">
-                  Highest: {maxTemperature?.toFixed(1) ?? "—"}{" "}
-                  {data.units.temperature}
-                </Typography>
-              </Stack>
 
               <Typography variant="body2">
-                Highest hourly precipitation chance:{" "}
-                {maxPrecipitationProbability === null
-                  ? "—"
-                  : `${maxPrecipitationProbability}%`}
+                Highest: {maxTemperature?.toFixed(1) ?? "—"}{" "}
+                {data.units.temperature}
               </Typography>
+            </Stack>
 
-              <TemperatureChart
-                points={points}
+            <Typography variant="body2">
+              Highest hourly precipitation chance:{" "}
+              {maxPrecipitationProbability === null
+                ? "—"
+                : `${maxPrecipitationProbability}%`}
+            </Typography>
+
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1}
+              role="group"
+              aria-label="Forecast metric"
+            >
+              <Button
+                type="button"
+                variant={isTemperature ? "contained" : "outlined"}
+                aria-pressed={isTemperature}
+                onClick={() => setMetric("temperature")}
+              >
+                Temperature
+              </Button>
+
+              <Button
+                type="button"
+                variant={!isTemperature ? "contained" : "outlined"}
+                aria-pressed={!isTemperature}
+                onClick={() => setMetric("precipitationProbability")}
+              >
+                Precipitation chance
+              </Button>
+            </Stack>
+
+            <Typography variant="subtitle2" component="h3">
+              {chartLabel}
+            </Typography>
+
+            {hasChartData ? (
+              <HourlyLineChart
+                minValue={isTemperature ? undefined : 0}
+                maxValue={isTemperature ? undefined : 100}
+                points={chartPoints}
                 timezone={data.timezone}
-                unit={data.units.temperature}
+                unit={
+                  isTemperature
+                    ? data.units.temperature
+                    : data.units.precipitationProbability
+                }
+                label={`${chartLabel} for ${location.name}`}
+                precision={isTemperature ? 1 : 0}
               />
+            ) : (
+              <Alert severity="info">
+                No {isTemperature ? "temperature" : "precipitation probability"}{" "}
+                data is available for this location.
+              </Alert>
+            )}
 
-              <details>
-                <summary>View hourly values</summary>
+            <details>
+              <summary>View hourly values</summary>
 
-                <ul>
-                  {data.hours.map((hour) => {
-                    const time = hourlyDateFormatter.format(
-                      new Date(hour.timestamp * 1000),
-                    );
+              <ul>
+                {data.hours.map((hour) => {
+                  const time = hourlyDateFormatter.format(
+                    new Date(hour.timestamp * 1000),
+                  );
 
-                    const temperature =
-                      hour.temperature === null
-                        ? "Unavailable"
-                        : `${hour.temperature} ${data.units.temperature}`;
+                  const temperature =
+                    hour.temperature === null
+                      ? "Unavailable"
+                      : `${hour.temperature} ${data.units.temperature}`;
 
-                    const precipitation =
-                      hour.precipitationProbability === null
-                        ? "Unavailable"
-                        : `${hour.precipitationProbability}%`;
+                  const precipitation =
+                    hour.precipitationProbability === null
+                      ? "Unavailable"
+                      : `${hour.precipitationProbability}%`;
 
-                    return (
-                      <li key={hour.timestamp}>
-                        {time} — Temperature: {temperature}
-                        {" · "}
-                        Precipitation chance: {precipitation}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </details>
-            </>
-          ) : (
-            <Alert severity="info">
-              No temperature data is available for this location.
-            </Alert>
-          ))}
+                  return (
+                    <li key={hour.timestamp}>
+                      {time} — Temperature: {temperature}
+                      {" · "}
+                      Precipitation chance: {precipitation}
+                    </li>
+                  );
+                })}
+              </ul>
+            </details>
+          </>
+        )}
 
         <Typography variant="caption" color="text.secondary">
           Weather data by <Link href="https://open-meteo.com/">Open-Meteo</Link>

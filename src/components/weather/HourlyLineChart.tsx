@@ -9,23 +9,30 @@ import {
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
-
-export type TemperaturePoint = {
+export type HourlyChartPoint = {
   timestamp: number;
   value: number | null;
 };
 
-type TemperatureChartProps = {
-  points: TemperaturePoint[];
+type HourlyLineChartProps = {
+  points: HourlyChartPoint[];
   timezone: string;
   unit: string;
+  label: string;
+  precision?: number;
+  minValue?: number;
+  maxValue?: number;
 };
 
-export default function TemperatureChart({
+export default function HourlyLineChart({
   points,
   timezone,
   unit,
-}: TemperatureChartProps) {
+  label,
+  precision = 1,
+  minValue,
+  maxValue,
+}: HourlyLineChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const theme = useTheme();
 
@@ -48,6 +55,11 @@ export default function TemperatureChart({
       minute: "2-digit",
     });
 
+    const fixedRange =
+      minValue !== undefined && maxValue !== undefined && minValue < maxValue
+        ? { minValue, maxValue }
+        : undefined;
+
     const chart = createChart(container, {
       autoSize: true,
 
@@ -62,6 +74,20 @@ export default function TemperatureChart({
       grid: {
         vertLines: { visible: false },
         horzLines: { color: theme.palette.divider },
+      },
+
+      rightPriceScale: {
+        autoScale: true,
+        scaleMargins: fixedRange
+          ? { top: 0.1, bottom: 0 }
+          : { top: 0.2, bottom: 0.1 },
+      },
+
+      handleScale: {
+        axisPressedMouseMove: {
+          time: true,
+          price: !fixedRange,
+        },
       },
 
       timeScale: {
@@ -86,10 +112,14 @@ export default function TemperatureChart({
       lineWidth: 2,
       priceLineVisible: false,
 
+      autoscaleInfoProvider: fixedRange
+        ? () => ({ priceRange: fixedRange })
+        : undefined,
+
       priceFormat: {
         type: "custom",
-        minMove: 0.1,
-        formatter: (value: number) => `${value.toFixed(1)} ${unit}`,
+        minMove: 10 ** -precision,
+        formatter: (value: number) => `${value.toFixed(precision)} ${unit}`,
       },
     });
 
@@ -106,13 +136,13 @@ export default function TemperatureChart({
     return () => {
       chart.remove();
     };
-  }, [points, timezone, unit, theme]);
+  }, [points, timezone, unit, precision, theme, minValue, maxValue]);
 
   return (
     <Box
       ref={containerRef}
       role="img"
-      aria-label={`Hourly temperature chart in ${unit}. Time zone: ${timezone}.`}
+      aria-label={`${label}. Unit: ${unit}. Time zone: ${timezone}.`}
       sx={{ width: "100%", height: { xs: 260, sm: 320 } }}
     />
   );
